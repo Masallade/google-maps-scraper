@@ -58,7 +58,7 @@ const createWindow = () => {
   ipcMain.handle("showSaveXlsxDialog", async (event: IpcMainEvent, args: SaveXlslDialogArgs): Promise<object | Error> => {
     try {
       const resp = await dialog.showSaveDialog(mainWindow, {
-        title: 'Simpan file hasil export',
+        title: 'Save export file',
         defaultPath: path.join(app.getPath('downloads'), args.queryText + '.xlsx'),
         buttonLabel: 'Save', 
         filters: [

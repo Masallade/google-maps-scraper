@@ -26,8 +26,8 @@ function FilterForm({
             });
         } else {
             window.api.showErrorAlert({
-                title: 'Lengkapi Isian!',
-                content: `${queryType === 'keyword' ? 'Kata kunci' : 'URL Google Map'} wajib diisi`,
+                title: 'Complete the Form!',
+                content: `${queryType === 'keyword' ? 'Keyword' : 'Google Map URL'} is required`,
             });
         }
     }
@@ -35,7 +35,7 @@ function FilterForm({
     const stopTask = async () => {
         try {
             const response: boolean = await window.api.openConfirmDialog({
-                title: 'Anda yakin ingin menghentikan proses scrapping?'
+                title: 'Are you sure you want to stop the scraping process?'
             });
             if (response) {
                 onCancel()
@@ -47,35 +47,35 @@ function FilterForm({
 
     return (
       <form id="scrapper-form">
-        <p className={`select-none`}>Mode pencarian:</p>
+        <p className={`select-none`}>Search mode:</p>
         <div className={`flex gap-3 select-none`}>
             <div className={`flex items-center`}>
                 <input type="radio" id="keyword_query_type" name="query_type" value="keyword"
                     checked={queryType === 'keyword'}
                     onChange={handleQueryTypeChange}
                 />
-                <label htmlFor="keyword_query_type">&nbsp;Pencarian bedasarkan kata kunci</label>
+                <label htmlFor="keyword_query_type">&nbsp;Search by keyword</label>
             </div>
             <div className={`flex items-center`}>
                 <input type="radio" id="keyword_url" name="query_type" value="url"
                     checked={queryType === 'url'}
                     onChange={handleQueryTypeChange}
                 />
-                <label htmlFor="keyword_url">&nbsp;Pencarian bedasarkan url</label>
+                <label htmlFor="keyword_url">&nbsp;Search by URL</label>
             </div>
         </div>
         <div className={`mt-2 flex ${queryType === 'keyword' ? 'gap-2' : ''}`}>
             <div className={queryType === 'keyword' ? `w-8/12` : `w-full`}>
-                <p className={`select-none`}>{queryType === 'keyword' ? 'Kata kunci' : 'URL Google Map'}*</p>
-                <input type="text" required name="query_value" id="query_value" placeholder="Masukkan kata kunci" className={`w-full py-1 px-2 text-dark rounded`}
+                <p className={`select-none`}>{queryType === 'keyword' ? 'Keyword' : 'Google Map URL'}*</p>
+                <input type="text" required name="query_value" id="query_value" placeholder="Enter keyword" className={`w-full py-1 px-2 text-dark rounded`}
                     onChange={event => setQueryValue(event.target.value)}
                 />
             </div>
             {
                 queryType === 'keyword' ? (
                     <div className={`w-4/12`}>
-                        <p className={`select-none`}>Lokasi</p>
-                        <input type="text" name="query_value_location" id="query_value_location" placeholder="Masukkan lokasi" className={`w-full py-1 px-2 text-dark rounded`}
+                        <p className={`select-none`}>Location</p>
+                        <input type="text" name="query_value_location" id="query_value_location" placeholder="Enter location" className={`w-full py-1 px-2 text-dark rounded`}
                         onChange={event => setQueryValueLocation(event.target.value)}
                     />
                     </div>

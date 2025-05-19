@@ -66,7 +66,7 @@ export default class GoogleMapScrapper {
           url = params.url;
         } 
         const parseUrl = new URL(url);
-        parseUrl.searchParams.append('hl', 'id'); // en = english
+        parseUrl.searchParams.append('hl', 'en'); // Changed from 'id' to 'en' for English
         console.log(parseUrl.toString())
         await page.goto(parseUrl.toString());
       } catch (error) {
@@ -130,7 +130,7 @@ export default class GoogleMapScrapper {
                     }
                     data.phone = phoneNumber;
   
-                    const dataWebsite = $('[aria-label^="Situs Web:"]');
+                    const dataWebsite = $('[aria-label^="Website:"]');
                     if (dataWebsite) {
                       data.bizWebsite = dataWebsite.attr('href');
                     }
@@ -161,7 +161,6 @@ export default class GoogleMapScrapper {
           // cek jika telah mencarapai akhir halaman
           const lastElementWrapper = $('div[role="feed"] > div:last-child');
           if (lastElementWrapper.length && (
-            lastElementWrapper.html().toLowerCase().includes("anda telah mencapai akhir daftar") ||
             lastElementWrapper.html().toLowerCase().includes("you've reached the end of the list")
           )) {
             this.scrollable = false;
