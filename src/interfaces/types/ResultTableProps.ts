@@ -1,8 +1,12 @@
 import Place from './Place';
 
+// Extended place type to include filter match status
+export interface PlaceWithFilter extends Place {
+  matchesFilters?: boolean;
+}
 
 export default interface ResultTableProps {
-  places : Place[];
-  onClear : () => void;
-  onExport : (places: Place[]) => void;
+  places: PlaceWithFilter[];
+  onClear: () => void;
+  onExport: (places: PlaceWithFilter[], queryText?: string) => void;
 }

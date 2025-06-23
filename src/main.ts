@@ -9,10 +9,11 @@ import log from 'electron-log/main';
 import GoogleMapScrapper from'./helpers/google-map-scrapper';
 import * as ExcelJS from "exceljs";
 import Place from './interfaces/types/Place';
+import { PlaceWithFilter } from './interfaces/types/ResultTableProps';
 
 
 type SaveXlslDialogArgs = {
-  places: Place[],
+  places: PlaceWithFilter[],
   queryText: string
 }
 
@@ -26,19 +27,35 @@ const googleMapScrapperInstance = new GoogleMapScrapper();
 const createWindow = () => {
   // Create the browser window.
   const mainWindow = new BrowserWindow({
-    width: 612,
-    height: 604,
-    resizable: false,
+    width: 1024,
+    height: 768,
+    resizable: true,
     fullscreen: false,
     webPreferences: {
       devTools: process.env.NODE_ENV === 'development',
       preload: path.join(__dirname, 'preload.js'),
-      disableHtmlFullscreenWindowResize: true,
+      disableHtmlFullscreenWindowResize: false,
     },
+    icon: path.join(__dirname, '../assets/icon.png'),
+    backgroundColor: '#ffffff',
+    show: false, // Don't show until ready-to-show
   });
-  mainWindow.setMinimumSize(612, 604);
-  mainWindow.setMaximumSize(612, 604);
-  mainWindow.setAlwaysOnTop(true);
+  
+  // Remove size restrictions
+  // mainWindow.setMinimumSize(612, 604);
+  // mainWindow.setMaximumSize(612, 604);
+  
+  // Set proper constraints instead
+  mainWindow.setMinimumSize(800, 600);
+  
+  // Only show window when ready to avoid flicker
+  mainWindow.once('ready-to-show', () => {
+    mainWindow.show();
+    mainWindow.focus();
+  });
+  
+  // Don't keep window on top
+  mainWindow.setAlwaysOnTop(false);
 
   // and load the index.html of the app.
   if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
@@ -57,56 +74,122 @@ const createWindow = () => {
 
   ipcMain.handle("showSaveXlsxDialog", async (event: IpcMainEvent, args: SaveXlslDialogArgs): Promise<object | Error> => {
     try {
+      // Sanitize the filename to remove invalid characters
+      const sanitizedQuery = args.queryText.replace(/[\\/:*?"<>|]/g, '_');
+      
       const resp = await dialog.showSaveDialog(mainWindow, {
         title: 'Save export file',
-        defaultPath: path.join(app.getPath('downloads'), args.queryText + '.xlsx'),
+        defaultPath: path.join(app.getPath('downloads'), sanitizedQuery + '.xlsx'),
         buttonLabel: 'Save', 
         filters: [
           { name: 'XLSX Files', extensions: ['xlsx'] }
         ]     
       });
-      if (!resp.canceled) {
+      
+      if (!resp.canceled && resp.filePath) {
+        try {
         const workbook = new ExcelJS.Workbook();
-        // Force workbook calculation on load
-        // workbook.calcProperties.fullCalcOnLoad = true;
-        const worksheet = workbook.addWorksheet('Database Kontak');
-        worksheet.columns = [
-          { header: 'Nama', key: 'nama', width: 50, font: {'bold': true} },
-          { header: 'Kategori', key: 'kategori', width: 30, font: {'bold': true}  },
-          { header: 'No. HP', key: 'no_hp', width: 100, font: {'bold': true}  },
-          { header: 'Alamat', key: 'alamat', width: 100, font: {'bold': true}  },
-          { header: 'URL Google', key: 'url_google', width: 100, font: {'bold': true}  },
-          { header: 'Rating', key: 'rating', width: 50, font: {'bold': true}  },
-          { header: 'Jlh Pemberi Rating', key: 'pemberi_rating', width: 50, font: {'bold': true}  },
-          { header: 'Website', key: 'website', width: 100, font: {'bold': true}  },
+          
+          // Create worksheets
+          const worksheet = workbook.addWorksheet('Businesses');
+          const wsWhatsApp = workbook.addWorksheet('WhatsApp Leads');
+          const wsChatbot = workbook.addWorksheet('Chatbot Leads');
+          const wsUnverified = workbook.addWorksheet('Unverified Leads');
+          const wsLowRated = workbook.addWorksheet('Low Rated Leads');
+          
+          // Define columns
+          const columns = [
+            { header: 'Name', key: 'name', width: 50, font: {'bold': true} },
+            { header: 'Category', key: 'category', width: 30, font: {'bold': true}  },
+            { header: 'Phone', key: 'phone', width: 30, font: {'bold': true}  },
+            { header: 'Address', key: 'address', width: 50, font: {'bold': true}  },
+            { header: 'Google URL', key: 'googleUrl', width: 50, font: {'bold': true}  },
+            { header: 'Rating', key: 'rating', width: 15, font: {'bold': true}  },
+            { header: 'Reviews', key: 'reviews', width: 15, font: {'bold': true}  },
+            { header: 'Website', key: 'website', width: 50, font: {'bold': true}  },
+            { header: 'Has WhatsApp', key: 'hasWhatsApp', width: 15, font: {'bold': true} },
+            { header: 'WhatsApp Number', key: 'whatsappNumber', width: 20, font: {'bold': true} },
+            { header: 'Has Chatbot', key: 'hasChatbot', width: 15, font: {'bold': true} },
+            { header: 'Google Verified', key: 'isVerified', width: 15, font: {'bold': true} },
+            { header: 'Country', key: 'country', width: 20, font: {'bold': true} },
+            { header: 'City', key: 'city', width: 20, font: {'bold': true} },
         ];
 
-        args.places.map(place => [
-          worksheet.addRow({
-            nama: place.storeName,
-            kategori: place.category,
-            alamat: place.address,
-            no_hp: place.phone,
-            url_google: place.googleUrl,
-            rating: place.stars,
-            pemberi_rating: place.numberOfReviews,
-            website: place.bizWebsite ? place.bizWebsite : ''
-          })
-        ]);
-
-        // fs.writeFile(
-        //   resp.filePath.toString(), 
-        //   csvString, function (err) { 
-        //     if (err) throw err; 
-        //     console.log('Saved!'); 
-        // });
-        // console.log('resp', resp)
+          // Apply columns to all worksheets
+          worksheet.columns = columns;
+          wsWhatsApp.columns = columns;
+          wsChatbot.columns = columns;
+          wsUnverified.columns = columns;
+          wsLowRated.columns = columns;
+  
+          // Process each place
+          for (const place of args.places) {
+            // Skip the matchesFilters property when adding to Excel
+            const { matchesFilters, ...placeData } = place;
+            
+            // Prepare row data
+            const row = {
+              name: placeData.storeName || '',
+              category: placeData.category || '',
+              phone: placeData.phone || '',
+              address: placeData.address || '',
+              googleUrl: placeData.googleUrl || '',
+              rating: placeData.stars || '',
+              reviews: placeData.numberOfReviews || '',
+              website: placeData.bizWebsite || '',
+              hasWhatsApp: placeData.hasWhatsApp || false,
+              whatsappNumber: placeData.whatsAppNumber || '',
+              hasChatbot: placeData.isChatbot || false,
+              isVerified: placeData.isVerified || false,
+              country: placeData.country || '',
+              city: placeData.city || ''
+            };
+            
+            // Add to main worksheet
+            worksheet.addRow(row);
+            
+            // Add to specialized worksheets based on criteria
+            if (placeData.hasWhatsApp) {
+              wsWhatsApp.addRow(row);
+            }
+            
+            if (placeData.isChatbot) {
+              wsChatbot.addRow(row);
+            }
+            
+            if (placeData.isVerified === false) {
+              wsUnverified.addRow(row);
+            }
+            
+            const rating = parseFloat(placeData.stars) || 0;
+            const reviewCount = placeData.numberOfReviews ? parseInt(placeData.numberOfReviews.replace(/,/g, '')) : 0;
+            if (rating <= 3.0 || reviewCount < 10) {
+              wsLowRated.addRow(row);
+            }
+          }
+          
+          // Write the file
+          try {
         await workbook.xlsx.writeFile(resp.filePath.toString());
-
+            console.log('File successfully saved at:', resp.filePath);
+          } catch (writeError) {
+            console.error('Error writing Excel file:', writeError);
+            dialog.showErrorBox('File Write Error', 'Failed to write Excel file: ' + writeError.message);
+            return Promise.reject(new Error('Failed to write Excel file'));
+          }
+          
+        } catch (innerError) {
+          console.error('Error processing places data:', innerError);
+          dialog.showErrorBox('Export Error', 'Failed to process data for export: ' + innerError.message);
+          return Promise.reject(new Error('Failed to process data for export'));
+        }
       }
-      return Promise.resolve(resp);
+      
+      return resp;
     } catch (e) {
-      Promise.reject(e);
+      console.error('Export error:', e);
+      dialog.showErrorBox('Export Error', 'Failed to save file: ' + e.message);
+      return Promise.reject(e);
     }
   });
 
@@ -114,7 +197,7 @@ const createWindow = () => {
     return dialog.showMessageBox(mainWindow, {
       message: args.title,
       type: 'question',
-      buttons: ['Tidak', 'Ya']
+      buttons: ['No', 'Yes']
     }).then(resp => {
       console.log('resp', resp)
       return Promise.resolve(resp.response === 1)
@@ -126,11 +209,31 @@ const createWindow = () => {
   ipcMain.on("startGoogleMapScrappingTask", async (event: IpcMainEvent, args: OnSubmitReturnForm) => {
     // Send result back to renderer process
     try {
-      const response = await googleMapScrapperInstance.startScrapping(event, args.queryType === 'keyword' ? {
-        query: args.queryValue + (args.queryValueLocation? ' di ' + args.queryValueLocation : '')
-      } : {
+      // Build location-aware query
+      const searchText = args.queryType === 'keyword' 
+        ? args.queryValue 
+        : null;
+
+      const response = await googleMapScrapperInstance.startScrapping(
+        event, 
+        args.queryType === 'keyword' 
+          ? {
+              query: searchText,
+              country: args.country,
+              city: args.city
+            } 
+          : {
         url: args.queryValue
-      });
+            },
+        {
+          minRating: args.minRating ? parseFloat(args.minRating) : undefined,
+          maxRating: args.maxRating ? parseFloat(args.maxRating) : undefined,
+          maxReviews: args.maxReviews ? parseInt(args.maxReviews) : undefined,
+          excludeVerified: args.excludeVerified,
+          requiresWhatsApp: args.checkWhatsApp,
+          detectChatbot: args.detectChatbot
+        }
+      );
       // event.sender.send('receiveResultGoogleMapScrapperForm', response);
     } catch (error) {
       // event.sender.send('errorResultGoogleMapScrapperForm', error);
